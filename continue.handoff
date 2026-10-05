@@ -1,0 +1,19 @@
+# handoff v1
+---
+mission: Continue Lumen from the files that are actually in this repo
+continue_from: lumen.py
+stop_rule: the next chat must open every file listed below before it writes; a claim with no committed file stops
+---
+FILES
+lumen.py
+run.json
+README.md
+sandbox/lumen.py
+sandbox/coding_agent.py
+sandbox/respond.py
+PASTE
+You are continuing Lumen. Do not restart the body. Read the files listed above before you write. The earlier sample named robot_tick_8.py, beat.py, and altnet.py. Those files are not in this repo. Build on lumen.py. Leave a committed file, not a tick log.
+RULES
+result: a committed file, not a tick log
+repo: https://github.com/fitzyracing1/lumen
+format: https://github.com/fitzyracing1/handoff
