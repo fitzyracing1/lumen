@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lumen</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { margin: 0; font-family: Georgia, serif; background: #0c1220; color: #f4efe4; }
+    main { max-width: 720px; margin: 0 auto; padding: 48px 20px 80px; }
+    h1 { font-weight: 500; letter-spacing: 0.08em; font-size: 2.4rem; margin-bottom: 0; }
+    .sub { color: #c9a227; letter-spacing: 0.14em; text-transform: uppercase; font-family: system-ui, sans-serif; font-size: 0.75rem; }
+    p, li { line-height: 1.55; font-size: 1.05rem; }
+    a { color: #e4c56a; }
+    code { font-family: ui-monospace, monospace; font-size: 0.92rem; }
+    .card { border: 1px solid #2a3348; padding: 16px 18px; margin: 18px 0; }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="sub">Bounded kernel</p>
+    <h1>Lumen</h1>
+    <p>A control loop that keeps a mission, scores beliefs, attacks its own plans, and only then writes a file. A tick log is not a result. A committed file is.</p>
+    <div class="card">
+      <p>Perceive. Propose three different plans. Attack them. Simulate the survivor. Commit, abort, or withhold.</p>
+    </div>
+    <h2>What is in the repo</h2>
+    <ul>
+      <li><a href="https://github.com/fitzyracing1/lumen/blob/main/lumen.py">lumen.py</a> — the kernel</li>
+      <li><a href="https://github.com/fitzyracing1/lumen/tree/main/sandbox">sandbox</a> — local server on port 3000, text readings, response files</li>
+      <li><a href="https://github.com/fitzyracing1/lumen/blob/main/responses/code/altnet.py">altnet.py</a> — a small alternative internet: content hash names, neighbor get, no DNS</li>
+      <li><a href="https://github.com/fitzyracing1/lumen/blob/main/responses/code/plan_gate.py">plan_gate.py</a> — the coding agent’s plan gate</li>
+    </ul>
+    <h2>Altnet</h2>
+    <p>A name is the hash of the bytes. Node c publishes. Node a does not have the bytes. A get walks b and returns them. Tests: 3 passed.</p>
+    <p><code>python3 -m unittest test_altnet</code></p>
+    <p>Source: <a href="https://github.com/fitzyracing1/lumen">github.com/fitzyracing1/lumen</a></p>
+  </main>
+</body>
+</html>
