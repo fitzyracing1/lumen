@@ -1,0 +1,239 @@
+{
+  "name": "Lumen",
+  "mission": "Outperform a single-pass assistant on a bounded research task",
+  "why_better_than_a_chat_model": [
+    "goals persist across cycles instead of dying with the prompt",
+    "beliefs are named, scored, and updated by evidence",
+    "every plan is attacked before it can act",
+    "action is simulated against a world model, then withheld if confidence is low",
+    "policy can revise itself, but only inside a budget and a safety check",
+    "the trace is the product: another process can replay the decision"
+  ],
+  "cycles": [
+    {
+      "tick": 1,
+      "status": "aborted",
+      "chosen": "decompose",
+      "score": 0.836,
+      "critique": "clean",
+      "issues": [],
+      "realized": 0.384,
+      "goals_done": []
+    },
+    {
+      "tick": 2,
+      "status": "committed",
+      "chosen": "decompose",
+      "score": 0.867,
+      "critique": "clean",
+      "issues": [],
+      "realized": 0.471,
+      "goals_done": [
+        "produce a checked answer"
+      ]
+    },
+    {
+      "tick": 3,
+      "status": "committed",
+      "chosen": "decompose",
+      "score": 0.628,
+      "critique": "clean",
+      "issues": [],
+      "realized": 0.508,
+      "goals_done": [
+        "frame the decision",
+        "produce a checked answer"
+      ]
+    }
+  ],
+  "policy_final": {
+    "min_confidence_to_act": 0.55,
+    "max_risk": 0.45,
+    "critic_weight": 0.65,
+    "revision_budget": 2
+  },
+  "beliefs_final": {
+    "signal": {
+      "claim": "the task has a measurable success signal",
+      "confidence": 0.731,
+      "revised": 6
+    },
+    "resources": {
+      "claim": "compute and attention budget is finite",
+      "confidence": 0.831,
+      "revised": 3
+    }
+  },
+  "goals": [
+    {
+      "name": "frame the decision",
+      "utility": 0.6,
+      "success_test": "one falsifiable question written",
+      "done": true
+    },
+    {
+      "name": "produce a checked answer",
+      "utility": 0.9,
+      "success_test": "answer survives internal attack",
+      "done": true
+    },
+    {
+      "name": "leave a reusable trace",
+      "utility": 0.5,
+      "success_test": "trace is sufficient to replay",
+      "done": false
+    }
+  ],
+  "trace": [
+    {
+      "tick": 0,
+      "event": "boot mission='Outperform a single-pass assistant on a bounded research task'",
+      "detail": ""
+    },
+    {
+      "tick": 0,
+      "event": "goal",
+      "detail": "frame the decision U=0.6"
+    },
+    {
+      "tick": 0,
+      "event": "goal",
+      "detail": "produce a checked answer U=0.9"
+    },
+    {
+      "tick": 0,
+      "event": "goal",
+      "detail": "leave a reusable trace U=0.5"
+    },
+    {
+      "tick": 1,
+      "event": "perceive",
+      "detail": "{\"signal\": 0.42, \"resources\": 0.8, \"noise\": 0.45}"
+    },
+    {
+      "tick": 1,
+      "event": "propose",
+      "detail": "direct,decompose,instrument-first"
+    },
+    {
+      "tick": 1,
+      "event": "attack",
+      "detail": "direct -> wounded U'=0.53"
+    },
+    {
+      "tick": 1,
+      "event": "simulate",
+      "detail": "direct realized=0.155"
+    },
+    {
+      "tick": 1,
+      "event": "attack",
+      "detail": "decompose -> clean U'=0.702"
+    },
+    {
+      "tick": 1,
+      "event": "simulate",
+      "detail": "decompose realized=0.384"
+    },
+    {
+      "tick": 1,
+      "event": "attack",
+      "detail": "instrument-first -> clean U'=0.678"
+    },
+    {
+      "tick": 1,
+      "event": "simulate",
+      "detail": "instrument-first realized=0.295"
+    },
+    {
+      "tick": 1,
+      "event": "abort",
+      "detail": "produce a checked answer via decompose realized=0.384"
+    },
+    {
+      "tick": 2,
+      "event": "perceive",
+      "detail": "{\"signal\": 0.55, \"resources\": 0.7, \"noise\": 0.32}"
+    },
+    {
+      "tick": 2,
+      "event": "propose",
+      "detail": "direct,decompose,instrument-first"
+    },
+    {
+      "tick": 2,
+      "event": "attack",
+      "detail": "direct -> wounded U'=0.53"
+    },
+    {
+      "tick": 2,
+      "event": "simulate",
+      "detail": "direct realized=0.220"
+    },
+    {
+      "tick": 2,
+      "event": "attack",
+      "detail": "decompose -> clean U'=0.702"
+    },
+    {
+      "tick": 2,
+      "event": "simulate",
+      "detail": "decompose realized=0.471"
+    },
+    {
+      "tick": 2,
+      "event": "attack",
+      "detail": "instrument-first -> clean U'=0.678"
+    },
+    {
+      "tick": 2,
+      "event": "simulate",
+      "detail": "instrument-first realized=0.383"
+    },
+    {
+      "tick": 2,
+      "event": "commit",
+      "detail": "produce a checked answer via decompose realized=0.471"
+    },
+    {
+      "tick": 3,
+      "event": "perceive",
+      "detail": "{\"signal\": 0.63, \"resources\": 0.62, \"noise\": 0.22}"
+    },
+    {
+      "tick": 3,
+      "event": "propose",
+      "detail": "direct,decompose,instrument-first"
+    },
+    {
+      "tick": 3,
+      "event": "attack",
+      "detail": "direct -> killed U'=0.326"
+    },
+    {
+      "tick": 3,
+      "event": "attack",
+      "detail": "decompose -> clean U'=0.45"
+    },
+    {
+      "tick": 3,
+      "event": "simulate",
+      "detail": "decompose realized=0.508"
+    },
+    {
+      "tick": 3,
+      "event": "attack",
+      "detail": "instrument-first -> clean U'=0.438"
+    },
+    {
+      "tick": 3,
+      "event": "simulate",
+      "detail": "instrument-first realized=0.427"
+    },
+    {
+      "tick": 3,
+      "event": "commit",
+      "detail": "frame the decision via decompose realized=0.508"
+    }
+  ]
+}
