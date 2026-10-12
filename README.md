@@ -25,3 +25,8 @@ python3 lumen.py
 ```
 
 Outputs `run.json` with cycles, final beliefs, final policy, and the full trace.
+
+## Documentation
+
+- In-repo docs: [docs/](docs/index.md)
+- Wiki: [https://github.com/fitzyracing1/lumen/wiki](https://github.com/fitzyracing1/lumen/wiki)
