@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    env:
+      # CI always runs on the offline deterministic stub; no network, no keys.
+      LUMEN_MODEL: stub
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install test dependencies
+        run: python -m pip install pytest
+      - name: Unit and end-to-end tests (stub backend)
+        run: python -m pytest -q
+      - name: Smoke test — demo mode
+        run: python lumen.py --out /tmp/run.json
+      - name: Smoke test — coding mode fixes the fixture
+        run: |
+          cp -r fixtures/buggy_calc /tmp/lumen-target
+          python lumen.py --task coding --target /tmp/lumen-target --out /tmp/coding-run.json
+          python - <<'EOF'
+          import json
+          report = json.load(open("/tmp/coding-run.json"))
+          assert report["solved"], report
+          EOF

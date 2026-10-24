@@ -1,0 +1,272 @@
+{
+  "name": "Lumen-coding",
+  "mission": "make the test suite pass in real-llm-target",
+  "target": "/tmp/real-llm-target",
+  "backend": "openai-compat",
+  "solved": true,
+  "cycles": [
+    {
+      "tick": 1,
+      "status": "withheld",
+      "tests": {
+        "passed": 1,
+        "failed": 1,
+        "errors": 0
+      },
+      "reason": "no-surviving-candidate"
+    },
+    {
+      "tick": 2,
+      "status": "withheld",
+      "tests": {
+        "passed": 1,
+        "failed": 1,
+        "errors": 0
+      },
+      "reason": "no-surviving-candidate"
+    },
+    {
+      "tick": 3,
+      "status": "withheld",
+      "tests": {
+        "passed": 1,
+        "failed": 1,
+        "errors": 0
+      },
+      "reason": "no-surviving-candidate"
+    },
+    {
+      "tick": 4,
+      "status": "committed",
+      "chosen": "fix_add_function",
+      "rationale": "The failing test is due to the incorrect implementation of the `add` function. This patch corrects the bug.",
+      "score": 0.928,
+      "critique": "wounded",
+      "issues": [
+        "The `add` function is incorrectly implemented, causing the test to fail.",
+        "The `sub` function is also incorrectly implemented, causing the test to fail."
+      ],
+      "realized": 1.0,
+      "tests": {
+        "passed": 1,
+        "failed": 1,
+        "errors": 0
+      },
+      "tests_after": {
+        "passed": 2,
+        "failed": 0,
+        "errors": 0
+      },
+      "goals_done": [
+        "make the test suite pass"
+      ]
+    },
+    {
+      "tick": 5,
+      "status": "done",
+      "tests": {
+        "passed": 2,
+        "failed": 0,
+        "errors": 0
+      }
+    }
+  ],
+  "policy_final": {
+    "min_confidence_to_act": 0.55,
+    "max_risk": 0.45,
+    "critic_weight": 0.65,
+    "revision_budget": 2
+  },
+  "beliefs_final": {
+    "patchable": {
+      "claim": "the failing tests can be fixed by editing source",
+      "confidence": 0.51,
+      "revised": 4
+    },
+    "test_signal": {
+      "claim": "the test suite gives a reliable signal",
+      "confidence": 0.832,
+      "revised": 5
+    }
+  },
+  "goals": [
+    {
+      "name": "make the test suite pass",
+      "utility": 1.0,
+      "success_test": "pytest exits green in the target",
+      "done": true
+    }
+  ],
+  "trace": [
+    {
+      "tick": 0,
+      "event": "boot mission='make the test suite pass in real-llm-target'",
+      "detail": ""
+    },
+    {
+      "tick": 0,
+      "event": "goal",
+      "detail": "make the test suite pass U=1.0"
+    },
+    {
+      "tick": 1,
+      "event": "perceive",
+      "detail": "passed=1 failed=1 errors=0"
+    },
+    {
+      "tick": 1,
+      "event": "propose",
+      "detail": "Fix the deliberate bug in add function,Add a test for sub function,Refactor the add function to avoid the bug"
+    },
+    {
+      "tick": 1,
+      "event": "attack",
+      "detail": "Fix the deliberate bug in add function -> wounded U'=0.578"
+    },
+    {
+      "tick": 1,
+      "event": "simulate",
+      "detail": "Fix the deliberate bug in add function passed=0 failed=0 errors=1 realized=0.000"
+    },
+    {
+      "tick": 1,
+      "event": "attack",
+      "detail": "Add a test for sub function -> killed U'=0.48"
+    },
+    {
+      "tick": 1,
+      "event": "attack",
+      "detail": "Refactor the add function to avoid the bug -> wounded U'=0.382"
+    },
+    {
+      "tick": 1,
+      "event": "simulate",
+      "detail": "Refactor the add function to avoid the bug passed=0 failed=0 errors=1 realized=0.000"
+    },
+    {
+      "tick": 1,
+      "event": "no-surviving-plan",
+      "detail": ""
+    },
+    {
+      "tick": 2,
+      "event": "perceive",
+      "detail": "passed=1 failed=1 errors=0"
+    },
+    {
+      "tick": 2,
+      "event": "propose",
+      "detail": "Update add function to fix the bug,Add a test case for sub function,Update sub function to fix the bug"
+    },
+    {
+      "tick": 2,
+      "event": "attack",
+      "detail": "Update add function to fix the bug -> wounded U'=0.529"
+    },
+    {
+      "tick": 2,
+      "event": "simulate",
+      "detail": "Update add function to fix the bug passed=0 failed=0 errors=1 realized=0.000"
+    },
+    {
+      "tick": 2,
+      "event": "attack",
+      "detail": "Add a test case for sub function -> killed U'=0.529"
+    },
+    {
+      "tick": 2,
+      "event": "attack",
+      "detail": "Update sub function to fix the bug -> wounded U'=0.529"
+    },
+    {
+      "tick": 2,
+      "event": "simulate",
+      "detail": "Update sub function to fix the bug passed=0 failed=0 errors=1 realized=0.000"
+    },
+    {
+      "tick": 2,
+      "event": "no-surviving-plan",
+      "detail": ""
+    },
+    {
+      "tick": 3,
+      "event": "perceive",
+      "detail": "passed=1 failed=1 errors=0"
+    },
+    {
+      "tick": 3,
+      "event": "propose",
+      "detail": "Fix the deliberate bug in add function,Update the test to reflect the bug fix,Add a new test case to cover the bug"
+    },
+    {
+      "tick": 3,
+      "event": "attack",
+      "detail": "Fix the deliberate bug in add function -> killed U'=0.285"
+    },
+    {
+      "tick": 3,
+      "event": "attack",
+      "detail": "Update the test to reflect the bug fix -> killed U'=0.324"
+    },
+    {
+      "tick": 3,
+      "event": "attack",
+      "detail": "Add a new test case to cover the bug -> killed U'=0.246"
+    },
+    {
+      "tick": 3,
+      "event": "no-surviving-plan",
+      "detail": ""
+    },
+    {
+      "tick": 4,
+      "event": "perceive",
+      "detail": "passed=1 failed=1 errors=0"
+    },
+    {
+      "tick": 4,
+      "event": "propose",
+      "detail": "fix_add_function,update_test_output,refactor_sub_function"
+    },
+    {
+      "tick": 4,
+      "event": "attack",
+      "detail": "fix_add_function -> wounded U'=0.578"
+    },
+    {
+      "tick": 4,
+      "event": "simulate",
+      "detail": "fix_add_function passed=2 failed=0 errors=0 realized=1.000"
+    },
+    {
+      "tick": 4,
+      "event": "attack",
+      "detail": "update_test_output -> killed U'=0.324"
+    },
+    {
+      "tick": 4,
+      "event": "attack",
+      "detail": "refactor_sub_function -> wounded U'=0.578"
+    },
+    {
+      "tick": 4,
+      "event": "simulate",
+      "detail": "refactor_sub_function passed=2 failed=0 errors=0 realized=1.000"
+    },
+    {
+      "tick": 4,
+      "event": "commit",
+      "detail": "fix_add_function applied, now passed=2 failed=0 errors=0"
+    },
+    {
+      "tick": 5,
+      "event": "perceive",
+      "detail": "passed=2 failed=0 errors=0"
+    },
+    {
+      "tick": 5,
+      "event": "done",
+      "detail": "all tests pass"
+    }
+  ]
+}

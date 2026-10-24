@@ -20,9 +20,10 @@ from __future__ import annotations
 
 import json
 import math
-import time
 from dataclasses import dataclass, field, asdict
-from typing import Callable
+from pathlib import Path
+
+from lumen_backends import ModelBackend, StubBackend, backend_from_env
 
 
 # ---------------------------------------------------------------------------
@@ -84,8 +85,9 @@ class Trace:
 class Lumen:
     """Hierarchical kernel: perceive -> model -> propose -> attack -> simulate -> act -> revise."""
 
-    def __init__(self, mission: str):
+    def __init__(self, mission: str, model: ModelBackend | None = None):
         self.mission = mission
+        self.model = model if model is not None else StubBackend()
         self.tick = 0
         self.goals: list[Goal] = []
         self.beliefs: dict[str, Belief] = {}
@@ -125,44 +127,42 @@ class Lumen:
                 support = 1.2 * (v - expected)
                 self.beliefs[k].update(support, f"obs={v:.2f}")
 
+    def model_context(self) -> dict:
+        """What the model backend is allowed to see."""
+        open_goals = [g for g in self.goals if not g.done]
+        focus = max(open_goals, key=lambda g: g.utility) if open_goals else None
+        return {
+            "mission": self.mission,
+            "focus": asdict(focus) if focus else None,
+            "beliefs": {
+                k: {"claim": b.claim, "confidence": round(b.confidence, 3)}
+                for k, b in self.beliefs.items()
+            },
+            "world": self.world,
+            "policy": self.policy,
+        }
+
     def propose(self) -> list[Hypothesis]:
         open_goals = [g for g in self.goals if not g.done]
         if not open_goals:
             return []
-        focus = max(open_goals, key=lambda g: g.utility)
-        # Three structurally different strategies, not three phrasings of one.
+        # The model proposes three structurally different strategies. The stub
+        # backend reproduces the original hardcoded catalog; a real model is
+        # free to do better. Garbage output means no plans — the kernel
+        # withholds rather than guesses.
+        plans = self.model.propose_plans(self.model_context())
+        if not plans:
+            self.log("propose-garbage", f"model {self.model.name} returned no valid plans")
+            return []
         catalog = [
             Hypothesis(
-                name="direct",
-                steps=[f"allocate all effort to {focus.name}", "measure success test", "stop on pass"],
-                predicted_utility=focus.utility * 0.72,
-                risk=0.28,
-                assumptions=["success test is observable", "no hidden constraint"],
-            ),
-            Hypothesis(
-                name="decompose",
-                steps=[
-                    f"split {focus.name} into probe / build / verify",
-                    "run cheapest probe that can falsify the plan",
-                    "build only the surviving branch",
-                    "verify against success test before claiming done",
-                ],
-                predicted_utility=focus.utility * 0.84,
-                risk=0.18,
-                assumptions=["a cheap falsifier exists", "branching cost < rework cost"],
-            ),
-            Hypothesis(
-                name="instrument-first",
-                steps=[
-                    "build the measurement before the intervention",
-                    f"define numeric pass line for {focus.success_test}",
-                    "intervene at the smallest dose that can move the metric",
-                    "abort if metric does not move",
-                ],
-                predicted_utility=focus.utility * 0.8,
-                risk=0.14,
-                assumptions=["metric is causal enough to steer by", "dose-response is monotone near zero"],
-            ),
+                name=p["name"],
+                steps=p["steps"],
+                predicted_utility=p["predicted_utility"],
+                risk=p["risk"],
+                assumptions=p["assumptions"],
+            )
+            for p in plans
         ]
         self.log("propose", ",".join(h.name for h in catalog))
         return catalog
@@ -170,7 +170,7 @@ class Lumen:
     def attack(self, h: Hypothesis) -> Critique:
         issues = []
         penalty = 0.0
-        # Adversarial pass: try to kill the plan.
+        # Adversarial pass: try to kill the plan. Static checks first.
         if h.risk > self.policy["max_risk"]:
             issues.append(f"risk {h.risk:.2f} exceeds policy max {self.policy['max_risk']}")
             penalty += 0.25
@@ -183,8 +183,19 @@ class Lumen:
         if "falsif" not in " ".join(h.steps) and h.name != "instrument-first":
             issues.append("no explicit falsifier in the step list")
             penalty += 0.08
+        # Model critique on top of the static checks. An unreachable or
+        # garbage critic is fatal: an unexamined plan does not get to act.
+        extra = self.model.critique_plan(asdict(h), self.model_context())
+        fatal_from_model = False
+        if extra is None:
+            issues.append("model critique unavailable or invalid")
+            fatal_from_model = True
+        else:
+            issues.extend(extra["issues"])
+            penalty += extra["penalty"]
+            fatal_from_model = extra["fatal"]
         adjusted = h.predicted_utility * (1 - self.policy["critic_weight"] * penalty) - h.risk * 0.3
-        fatal = adjusted < 0.35 or h.risk > 0.6
+        fatal = fatal_from_model or adjusted < 0.35 or h.risk > 0.6
         note = "killed" if fatal else ("wounded" if issues else "clean")
         critique = Critique(fatal, issues, round(adjusted, 3), note)
         self.log("attack", f"{h.name} -> {note} U'={critique.adjusted_utility}")
@@ -280,8 +291,8 @@ class Lumen:
         }
 
 
-def run_demo() -> dict:
-    kernel = Lumen("Outperform a single-pass assistant on a bounded research task")
+def run_demo(model: ModelBackend | None = None) -> dict:
+    kernel = Lumen("Outperform a single-pass assistant on a bounded research task", model=model)
     kernel.believe("signal", "the task has a measurable success signal", 0.52, "prior")
     kernel.believe("resources", "compute and attention budget is finite", 0.7, "prior")
     kernel.add_goal("frame the decision", 0.6, "one falsifiable question written")
@@ -321,10 +332,52 @@ def run_demo() -> dict:
     return report
 
 
-if __name__ == "__main__":
-    report = run_demo()
-    print(json.dumps({k: report[k] for k in ("cycles", "policy_final", "beliefs_final", "goals")}, indent=2))
-    out = "/workspace/artifacts/superintelligence-kernel/run.json"
+def main(argv: list[str] | None = None) -> int:
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Lumen — a bounded superintelligence kernel.",
+        epilog="Model backend is chosen by LUMEN_MODEL (stub | amalia | openai); "
+               "default is the offline deterministic stub.",
+    )
+    parser.add_argument("--task", choices=("demo", "coding"), default="demo",
+                        help="demo: the original synthetic mission (default). "
+                             "coding: point Lumen at a directory with failing tests.")
+    parser.add_argument("--target", help="target directory for --task coding")
+    parser.add_argument("--max-cycles", type=int, default=5,
+                        help="cycle budget for --task coding (default 5)")
+    parser.add_argument("--test-timeout", type=float, default=120.0,
+                        help="seconds before a test run is killed (default 120)")
+    parser.add_argument("--out", default=None,
+                        help="where to write run.json (default: next to lumen.py "
+                             "for demo, ./run.json for coding)")
+    args = parser.parse_args(argv)
+
+    model = backend_from_env()
+
+    if args.task == "coding":
+        if not args.target:
+            parser.error("--task coding requires --target DIR")
+        from lumen_coding import run_coding_task
+        out = args.out or "run.json"
+        report = run_coding_task(
+            args.target, model=model, max_cycles=args.max_cycles,
+            test_timeout=args.test_timeout, out_path=out,
+        )
+        print(json.dumps({k: report[k] for k in
+                          ("cycles", "policy_final", "beliefs_final", "goals")}, indent=2))
+        print(f"wrote {out}")
+        return 0 if report["solved"] else 1
+
+    report = run_demo(model=model)
+    print(json.dumps({k: report[k] for k in
+                      ("cycles", "policy_final", "beliefs_final", "goals")}, indent=2))
+    out = args.out or str(Path(__file__).resolve().parent / "run.json")
     with open(out, "w") as f:
         json.dump(report, f, indent=2)
     print(f"wrote {out}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
