@@ -1,7 +1,20 @@
 # Usage
 
 ## Kernel API (`lumen.py`)
-`Lumen(mission)` provides `believe(key, claim, confidence)`, `add_goal(name, utility, success_test)`, `perceive(observation)`, `propose()`, `attack(h)`, `simulate(h)`, `act(h, realized)`, `maybe_revise_policy(history)`, and `cycle(observation)`. `run_demo()` drives the default mission.
+`Lumen(mission, model=None)` provides `believe(key, claim, confidence)`, `add_goal(name, utility, success_test)`, `perceive(observation)`, `propose()`, `attack(h)`, `simulate(h)`, `act(h, realized)`, `maybe_revise_policy(history)`, and `cycle(observation)`. `run_demo()` drives the default mission. `propose` and `attack` call the model backend; invalid model output makes the kernel withhold.
+
+## CLI
+
+```bash
+python3 lumen.py                                   # demo mission, writes run.json
+python3 lumen.py --task coding --target DIR        # fix failing tests in DIR
+python3 lumen.py --task coding --target DIR --max-cycles 5 --test-timeout 120 --out run.json
+```
+
+The backend is selected by `LUMEN_MODEL` (`stub` default, `amalia`, `openai`); see the README for the environment variables of each.
+
+## Coding mode (`lumen_coding.py`)
+`CodingLumen(target_dir, model, test_timeout)` keeps the kernel layers but on a real substrate: perceive runs pytest in a scratch copy, propose asks the model for up to 3 patches (full-file edits), attack combines static checks (sandboxed paths, `ast.parse`, no test-file edits, no no-ops) with a model critique, simulate applies the patch in a scratch copy and runs the tests, act applies to the target only when tests improve and mean belief confidence clears `min_confidence_to_act` — with a revert if reality disagrees with the simulation. `run_coding_task(...)` drives it and writes a replayable `run.json`.
 
 ## Sandbox endpoints (`sandbox/mock_server.py`)
 

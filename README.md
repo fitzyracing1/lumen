@@ -26,6 +26,79 @@ python3 lumen.py
 
 Outputs `run.json` with cycles, final beliefs, final policy, and the full trace.
 
+## Model backends
+
+Propose and attack go through a pluggable model backend (`lumen_backends.py`),
+selected by the `LUMEN_MODEL` environment variable:
+
+| `LUMEN_MODEL` | What it is | Configuration |
+|---|---|---|
+| `stub` (default) | Offline, deterministic. No network. Used by tests and CI. | none |
+| `amalia` | Amália (Portugal's national LLM) served on another machine. | `AMALIA_BASE_URL` (default `http://127.0.0.1:8000/v1`), optional `AMALIA_API_KEY`, `AMALIA_MODEL` (default `amalia`) |
+| `openai` | Any OpenAI-compatible chat completions endpoint (Ollama, llama.cpp, vLLM, OpenAI, ...). | `OPENAI_BASE_URL` (or `LUMEN_BASE_URL`), optional `OPENAI_API_KEY`, `OPENAI_MODEL` |
+
+Model output must be valid JSON matching the expected plan/patch/critique
+shapes. Anything else — prose, truncation, an unreachable server — validates to
+nothing, and the kernel withholds instead of guessing.
+
+## Coding-task mode
+
+Point Lumen at a directory with failing tests. Each cycle: perceive = run
+pytest and read the failures; propose = 3 candidate patches from the model;
+attack = static checks (sandbox paths, syntax, no test edits) plus model
+critique; simulate = apply the patch in a scratch copy and run the tests for
+real; act = apply to the target only if tests improve and confidence clears the
+policy threshold, otherwise withhold. Beliefs update from real test results and
+the policy revision stays budgeted.
+
+```bash
+cp -r fixtures/buggy_calc /tmp/lumen-target
+python3 lumen.py --task coding --target /tmp/lumen-target
+```
+
+The included fixture has a deliberately failing test; even the offline stub
+fixes it (by proposing dumb operator mutations that attack and simulation then
+filter). Sandbox guarantees: writes are confined to the target directory, test
+files are read-only, and every test run has a timeout.
+
+## Running against Amália on another machine
+
+Amália runs on the owner's other computer. Serve it with an OpenAI-compatible
+chat completions endpoint (see [github.com/fitzyracing1/amalia2.0](https://github.com/fitzyracing1/amalia2.0)),
+bound to the LAN rather than localhost (e.g. `--host 0.0.0.0 --port 8000`), or
+expose it through a tunnel (`ssh -L 8000:localhost:8000 user@that-machine`,
+Tailscale, ngrok, ...). Then, one command:
+
+```bash
+LUMEN_MODEL=amalia AMALIA_BASE_URL=http://<that-machine>:8000/v1 \
+  python3 lumen.py --task coding --target /tmp/lumen-target
+```
+
+Add `AMALIA_API_KEY` if the server requires one, and `AMALIA_MODEL` if it
+serves several models. The same works for any local LLM via the generic
+backend, e.g. Ollama:
+
+```bash
+ollama pull qwen2.5-coder:1.5b
+LUMEN_MODEL=openai OPENAI_BASE_URL=http://localhost:11434/v1 \
+  OPENAI_MODEL=qwen2.5-coder:1.5b \
+  python3 lumen.py --task coding --target /tmp/lumen-target
+```
+
+A real trace from that exact Ollama setup is committed at
+`runs/real-llm-run.json`.
+
+## Tests
+
+```bash
+pip install pytest
+python -m pytest -q
+```
+
+Tests run entirely on the stub backend (no network) and include an end-to-end
+run where the stub fixes the fixture. CI (`.github/workflows/ci.yml`) runs the
+same plus demo and coding-mode smoke tests.
+
 ## Documentation
 
 - In-repo docs: [docs/](docs/index.md)

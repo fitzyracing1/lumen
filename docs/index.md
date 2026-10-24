@@ -4,8 +4,10 @@ Lumen is a small Python kernel that the README calls "a bounded superintelligenc
 
 The README is explicit that Lumen is not a mind, not conscious, and not an unbounded self-improver. It has no training loop and no access to weights.
 
+Propose and attack go through a pluggable model backend (offline stub by default, Amália or any OpenAI-compatible endpoint by environment variables), and a coding-task mode points the same kernel at a real directory with failing tests.
+
 Pages: [Getting started](getting-started.md) · [Usage](usage.md) · [Architecture](architecture.md) · [Contributing](contributing.md)
 
-The repo has no CI workflow and no LICENSE file.
+CI runs the test suite on the stub backend (`.github/workflows/ci.yml`). The repo has no LICENSE file.
 
 Copyright (c) 2026 Joshua Almeida
