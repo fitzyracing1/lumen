@@ -1,0 +1,5 @@
+{
+  "category": "edge-case",
+  "expect_fix": true,
+  "description": "mean crashes on an empty list; spec says return 0.0"
+}

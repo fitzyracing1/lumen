@@ -1,0 +1,5 @@
+{
+  "category": "off-by-one",
+  "expect_fix": true,
+  "description": "sum_to(n) excludes n because range stops early"
+}

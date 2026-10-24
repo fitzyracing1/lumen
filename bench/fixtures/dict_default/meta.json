@@ -1,0 +1,5 @@
+{
+  "category": "missing-key",
+  "expect_fix": true,
+  "description": "get_city raises KeyError; spec says default to 'unknown'"
+}
