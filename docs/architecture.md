@@ -5,6 +5,11 @@
 | `lumen.py` | `Belief`, `Goal`, `Hypothesis`, `Critique`, `Trace`, `Lumen`, `run_demo`, CLI |
 | `lumen_backends.py` | model backends: `StubBackend` (offline default), `OpenAICompatBackend`, `AmaliaBackend`, `backend_from_env`, JSON extraction/validation |
 | `lumen_coding.py` | `CodingLumen`, `run_coding_task`, sandboxed test runner |
+| `lumen_memory.py` | `Memory`: persistent beliefs, policy, and lessons between runs |
+| `lumen_bench/` | bug benchmark runner (`python3 -m lumen_bench`) |
+| `bench/fixtures/` | 13 bug fixtures, each with hidden held-out tests |
+| `bench/results/` | committed benchmark reports (JSON + markdown) |
+| `scripts/amalia_bench.sh` | one-command reachability check + benchmark against Amália |
 | `fixtures/buggy_calc/` | tiny target repo with a deliberately failing test |
 | `tests/` | unit + end-to-end tests on the stub backend |
 | `.github/workflows/ci.yml` | CI: pytest plus demo and coding-mode smoke tests |

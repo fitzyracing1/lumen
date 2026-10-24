@@ -9,7 +9,21 @@
 python3 lumen.py                                   # demo mission, writes run.json
 python3 lumen.py --task coding --target DIR        # fix failing tests in DIR
 python3 lumen.py --task coding --target DIR --max-cycles 5 --test-timeout 120 --out run.json
+python3 lumen.py --task coding --target DIR --memory mem.json   # persist memory
+python3 lumen.py --forget --memory mem.json        # wipe the memory store
 ```
+
+## Benchmark CLI
+
+```bash
+python3 -m lumen_bench --model stub                          # all fixtures, offline
+python3 -m lumen_bench --model openai:qwen2.5-coder:1.5b     # local Ollama
+python3 -m lumen_bench --model amalia --check-only           # reachability only
+python3 -m lumen_bench --model stub --fixtures wrong_operator,impossible
+python3 -m lumen_bench --model stub --memory mem.json --reset-memory
+```
+
+Writes `<prefix>.json` and `<prefix>.md` (default under `bench/results/`).
 
 The backend is selected by `LUMEN_MODEL` (`stub` default, `amalia`, `openai`); see the README for the environment variables of each.
 

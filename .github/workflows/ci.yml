@@ -34,3 +34,13 @@ jobs:
           report = json.load(open("/tmp/coding-run.json"))
           assert report["solved"], report
           EOF
+      - name: Smoke test — bug benchmark on the stub
+        run: |
+          python -m lumen_bench --model stub --out /tmp/bench
+          python - <<'EOF'
+          import json
+          report = json.load(open("/tmp/bench.json"))
+          assert report["summary"]["wrong_fixes"] == 0, report["summary"]
+          assert report["summary"]["impossible_handled"] is True, report["summary"]
+          assert report["summary"]["fixed"] >= 1, report["summary"]
+          EOF

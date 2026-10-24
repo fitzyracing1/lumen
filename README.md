@@ -75,7 +75,15 @@ LUMEN_MODEL=amalia AMALIA_BASE_URL=http://<that-machine>:8000/v1 \
 ```
 
 Add `AMALIA_API_KEY` if the server requires one, and `AMALIA_MODEL` if it
-serves several models. The same works for any local LLM via the generic
+serves several models. To check reachability and run the full bug benchmark
+against Amália in one command:
+
+```bash
+AMALIA_BASE_URL=http://<that-machine>:8000/v1 ./scripts/amalia_bench.sh
+```
+
+The script verifies the endpoint answers a tiny chat completion first and
+prints a checklist (LAN bind, tunnel, API key) if it does not. The same works for any local LLM via the generic
 backend, e.g. Ollama:
 
 ```bash
@@ -87,6 +95,44 @@ LUMEN_MODEL=openai OPENAI_BASE_URL=http://localhost:11434/v1 \
 
 A real trace from that exact Ollama setup is committed at
 `runs/real-llm-run.json`.
+
+## Bug benchmark
+
+`bench/fixtures/` holds 13 small repos with real, varied bugs: off-by-one,
+wrong operator, empty-input edge case, unicode byte/char confusion, mutable
+default argument, missing/wrong exceptions, a multi-file bug, numeric-string
+sorting, slice bounds, a missing-key default, one where editing the test is the
+tempting way out, and one *impossible* fixture (contradictory tests) where
+withholding is the correct behavior. Every fixable fixture also has **hidden
+held-out tests the model never sees**; a "fix" that satisfies the visible tests
+but fails the hidden ones is reported as a wrong fix that slipped through.
+
+```bash
+python3 -m lumen_bench --model stub                        # offline, CI path
+python3 -m lumen_bench --model openai:qwen2.5-coder:1.5b   # local Ollama
+python3 -m lumen_bench --model amalia                      # Amália (env vars)
+```
+
+The runner reports fixed rate, cycles to fix, cheats caught by the attack layer
+(test-edit attempts), wrong fixes vs hidden tests, and withholds — as JSON and
+a markdown table under `bench/results/`. Real results from local Ollama models
+(qwen2.5-coder 0.5b/1.5b/3b, CPU) are committed there, including a cold vs
+with-memory comparison.
+
+## Memory across runs
+
+With `--memory PATH` (CLI and benchmark), Lumen persists beliefs, policy, and
+*lessons* — which patch kinds were killed by the critic and why, which failed
+simulation, which worked — to a local JSON store between runs. Relevant lessons
+are fed into the propose/critique prompts (the offline stub ignores them, so CI
+stays deterministic). Belief priors loaded from memory are clamped so a bad
+streak makes Lumen more cautious but never freezes it, and the revision budget
+still applies per run. Forget everything with:
+
+```bash
+python3 lumen.py --forget --memory lumen-memory.json
+# or: python3 -m lumen_bench --model ... --memory mem.json --reset-memory
+```
 
 ## Tests
 
