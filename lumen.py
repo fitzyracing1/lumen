@@ -351,7 +351,24 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", default=None,
                         help="where to write run.json (default: next to lumen.py "
                              "for demo, ./run.json for coding)")
+    parser.add_argument("--memory", default=None, metavar="PATH",
+                        help="persist beliefs, policy, and lessons to this JSON "
+                             "file between coding runs (default: off; also "
+                             "honors LUMEN_MEMORY)")
+    parser.add_argument("--forget", action="store_true",
+                        help="wipe the memory store given by --memory/LUMEN_MEMORY "
+                             "and exit")
     args = parser.parse_args(argv)
+
+    import os
+    memory_path = args.memory or os.environ.get("LUMEN_MEMORY")
+    if args.forget:
+        if not memory_path:
+            parser.error("--forget requires --memory PATH (or LUMEN_MEMORY)")
+        from lumen_memory import Memory
+        Memory(memory_path).reset()
+        print(f"forgot {memory_path}")
+        return 0
 
     model = backend_from_env()
 
@@ -359,10 +376,14 @@ def main(argv: list[str] | None = None) -> int:
         if not args.target:
             parser.error("--task coding requires --target DIR")
         from lumen_coding import run_coding_task
+        memory = None
+        if memory_path:
+            from lumen_memory import Memory
+            memory = Memory(memory_path)
         out = args.out or "run.json"
         report = run_coding_task(
             args.target, model=model, max_cycles=args.max_cycles,
-            test_timeout=args.test_timeout, out_path=out,
+            test_timeout=args.test_timeout, out_path=out, memory=memory,
         )
         print(json.dumps({k: report[k] for k in
                           ("cycles", "policy_final", "beliefs_final", "goals")}, indent=2))

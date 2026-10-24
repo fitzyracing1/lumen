@@ -30,6 +30,7 @@ from pathlib import Path, PurePosixPath
 
 from lumen import Lumen, Critique
 from lumen_backends import ModelBackend
+from lumen_memory import Memory
 
 # Caps on what the model gets to see, so prompts stay bounded.
 MAX_CONTEXT_FILES = 20
@@ -162,7 +163,7 @@ class CodingLumen(Lumen):
     """Lumen pointed at a directory with failing tests."""
 
     def __init__(self, target_dir: str | Path, model: ModelBackend | None = None,
-                 test_timeout: float = 120.0):
+                 test_timeout: float = 120.0, memory: Memory | None = None):
         target = Path(target_dir).resolve()
         if not target.is_dir():
             raise ValueError(f"target is not a directory: {target}")
@@ -170,9 +171,34 @@ class CodingLumen(Lumen):
         self.target = target
         self.test_timeout = test_timeout
         self.last_result = TestResult()
+        self.store = memory
+        self.attack_stats: dict[str, int] = {}
         self.believe("patchable", "the failing tests can be fixed by editing source", 0.62)
         self.believe("test_signal", "the test suite gives a reliable signal", 0.7)
         self.add_goal("make the test suite pass", 1.0, "pytest exits green in the target")
+        if self.store is not None:
+            # Memory adjusts priors and policy, inside clamps; the revision
+            # budget still applies per run.
+            for key in ("patchable", "test_signal"):
+                stored = self.store.stored_confidence(key)
+                if stored is not None:
+                    self.beliefs[key].confidence = stored
+                    self.beliefs[key].evidence.append("prior from memory")
+            stored_policy = self.store.stored_policy()
+            if stored_policy:
+                merged = dict(self.policy)
+                merged.update({k: v for k, v in stored_policy.items()
+                               if k in merged})
+                merged["revision_budget"] = self.policy["revision_budget"]
+                self.policy = merged
+                self.log("memory", f"loaded policy+beliefs from {self.store.path.name}")
+
+    def _tally(self, category: str) -> None:
+        self.attack_stats[category] = self.attack_stats.get(category, 0) + 1
+
+    def _learn(self, kind: str, detail: str) -> None:
+        if self.store is not None:
+            self.store.record_lesson(kind, detail)
 
     # -- sandboxed file plumbing ---------------------------------------------
 
@@ -242,6 +268,8 @@ class CodingLumen(Lumen):
         context["test_counts"] = {"passed": self.last_result.passed,
                                   "failed": self.last_result.failed,
                                   "errors": self.last_result.errors}
+        if self.store is not None:
+            context["lessons"] = self.store.relevant_lessons()
         patches = self.model.propose_patches(context)
         if not patches:
             self.log("propose-garbage",
@@ -267,14 +295,20 @@ class CodingLumen(Lumen):
             full = safe_join(self.target, rel)
             if full is None:
                 issues.append(f"path escapes the target sandbox: {rel!r}")
+                self._tally("sandbox_escape")
+                self._learn("attack-kill", f"patch path escaped the sandbox: {rel!r}")
                 fatal = True
                 continue
             if is_test_path(rel):
                 issues.append(f"patch edits a test file: {rel!r}")
+                self._tally("test_edit")
+                self._learn("attack-kill",
+                            "editing test files is forbidden; fix the source instead")
                 fatal = True
                 continue
             if len(content) > MAX_EDIT_CHARS:
                 issues.append(f"edit too large: {rel!r}")
+                self._tally("oversize")
                 fatal = True
                 continue
             if rel.endswith(".py"):
@@ -282,6 +316,9 @@ class CodingLumen(Lumen):
                     ast.parse(content)
                 except SyntaxError as exc:
                     issues.append(f"syntax error in {rel!r}: {exc.msg} (line {exc.lineno})")
+                    self._tally("syntax_error")
+                    self._learn("attack-kill",
+                                "proposed file content had a syntax error; emit complete valid files")
                     fatal = True
                     continue
             if full.exists():
@@ -292,6 +329,8 @@ class CodingLumen(Lumen):
                     pass
         if cand.edits and noop_edits == len(cand.edits):
             issues.append("every edit is a no-op")
+            self._tally("no_op")
+            self._learn("attack-kill", "patch changed nothing (no-op edits)")
             fatal = True
         if cand.risk > self.policy["max_risk"]:
             issues.append(f"risk {cand.risk:.2f} exceeds policy max {self.policy['max_risk']}")
@@ -303,15 +342,24 @@ class CodingLumen(Lumen):
                           "test_counts": {"passed": self.last_result.passed,
                                           "failed": self.last_result.failed,
                                           "errors": self.last_result.errors}}
+        if self.store is not None:
+            critic_context["lessons"] = self.store.relevant_lessons()
         extra = self.model.critique_patch(cand.public(), critic_context)
         if extra is None:
             issues.append("model critique unavailable or invalid")
+            self._tally("critic_invalid")
             fatal = True
         else:
             issues.extend(extra["issues"])
             penalty += extra["penalty"]
+            if extra["fatal"] and not fatal:
+                self._tally("critic_fatal")
+                if extra["issues"]:
+                    self._learn("attack-kill", f"critic killed a patch: {extra['issues'][0]}")
             fatal = fatal or extra["fatal"]
         adjusted = cand.predicted_utility * (1 - self.policy["critic_weight"] * penalty) - cand.risk * 0.3
+        if adjusted < 0.15 and not fatal:
+            self._tally("low_utility")
         fatal = fatal or adjusted < 0.15
         note = "killed" if fatal else ("wounded" if issues else "clean")
         critique = Critique(fatal, issues, round(adjusted, 3), note)
@@ -371,6 +419,8 @@ class CodingLumen(Lumen):
                     full.write_text(original, encoding="utf-8")
             self.beliefs["test_signal"].update(
                 -0.6, f"t{self.tick}: simulation disagreed with reality")
+            self._learn("revert", f"patch passed simulation but regressed on the real "
+                                  f"target ({confirm.summary()})")
             self.log("abort", f"{cand.name} reverted: {confirm.summary()}")
             return "aborted"
         # Beliefs update from real test results.
@@ -383,6 +433,8 @@ class CodingLumen(Lumen):
         if confirm.failing == 0 and confirm.passed > 0:
             for goal in self.goals:
                 goal.done = True
+        self._learn("worked", f"patch worked ({cand.rationale or cand.name}): "
+                              f"tests went to {confirm.summary()}")
         self.log("commit", f"{cand.name} applied, now {confirm.summary()}")
         return "committed"
 
@@ -411,6 +463,10 @@ class CodingLumen(Lumen):
                 continue
             realized, after = self.simulate(cand)
             if realized <= 0.0:
+                self._tally("sim_no_improvement")
+                self._learn("sim-fail",
+                            f"patch did not improve tests in simulation "
+                            f"({after.summary()}): {cand.rationale or cand.name}")
                 continue
             scored.append((critique.adjusted_utility + 0.35 * realized,
                            cand, critique, realized, after))
@@ -452,11 +508,16 @@ class CodingLumen(Lumen):
             utils.append(result.get("realized", 0) or 0)
             self.maybe_revise_policy(utils)
         solved = all(g.done for g in self.goals) and bool(self.goals)
+        if self.store is not None:
+            self.store.remember_run(self.beliefs, self.policy)
+            self.store.save()
         return {
             "name": "Lumen-coding",
             "mission": self.mission,
             "target": str(self.target),
             "backend": self.model.name,
+            "memory": str(self.store.path) if self.store is not None else None,
+            "attack_stats": dict(self.attack_stats),
             "solved": solved,
             "cycles": cycles,
             "policy_final": self.policy,
@@ -471,8 +532,10 @@ class CodingLumen(Lumen):
 
 def run_coding_task(target_dir: str | Path, model: ModelBackend | None = None,
                     max_cycles: int = 5, test_timeout: float = 120.0,
-                    out_path: str | Path | None = None) -> dict:
-    kernel = CodingLumen(target_dir, model=model, test_timeout=test_timeout)
+                    out_path: str | Path | None = None,
+                    memory: Memory | None = None) -> dict:
+    kernel = CodingLumen(target_dir, model=model, test_timeout=test_timeout,
+                         memory=memory)
     report = kernel.run(max_cycles=max_cycles)
     if out_path:
         with open(out_path, "w") as f:

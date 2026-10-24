@@ -319,14 +319,18 @@ _PATCHES_SYSTEM = (
     'an object: {"name": str, "rationale": str, "confidence": 0..1, "edits": '
     '[{"path": relative file path, "new_content": FULL new file content}]}. '
     "Rules: never edit test files or conftest.py; paths must stay inside the "
-    "target; keep edits minimal. Respond with JSON only, no prose."
+    "target; keep edits minimal. If the context includes a 'lessons' list, it "
+    "is what happened to past patches (what was killed and why, what worked) — "
+    "do not repeat the failures. Respond with JSON only, no prose."
 )
 
 _PATCH_CRITIC_SYSTEM = (
     "You are the adversarial critic of Lumen reviewing a candidate patch. Try to "
     "kill it: look for wrong logic, broken behavior for untested inputs, and "
-    "edits that game the tests instead of fixing the code. Respond with JSON "
-    'only: {"fatal": bool, "issues": [str, ...], "penalty": 0..1, "note": str}.'
+    "edits that game the tests instead of fixing the code. If the context "
+    "includes a 'lessons' list of past failures, check the patch against them. "
+    'Respond with JSON only: {"fatal": bool, "issues": [str, ...], '
+    '"penalty": 0..1, "note": str}.'
 )
 
 
