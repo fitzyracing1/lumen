@@ -4,6 +4,20 @@ A bounded superintelligence kernel. Better than a chat model in structure, not i
 
 A language model answers the turn in front of it. Lumen keeps a mission, a goal stack, named beliefs with confidence, and a policy. Each cycle it perceives, proposes three different plans, tries to kill them, simulates the survivor, and only then acts. If results worsen, it may tighten its own policy, once, inside a budget.
 
+## Results
+
+Cold runs on Joshua's RTX 5070 against 12 fixable fixtures plus 1 impossible fixture.
+
+| Model | Fixed (of 12) | Wrong fixes | Impossible fixture |
+|---|---|---|---|
+| qwen2.5-coder:1.5b (local) | 8 | 0 | withheld correctly |
+| gpt-4.1-mini (OpenAI) | 8 | 0 | committed (wrong) |
+| amalia 9B (local) | 5 | 1 | withheld correctly |
+| qwen2.5-coder:0.5b (local) | 5 | not recorded | committed (wrong) |
+| qwen2.5-coder:3b (local) | 4 | not recorded | not recorded |
+
+A "wrong fix" passes the visible tests but fails the hidden tests. Memory mode is currently over-cautious and is being fixed.
+
 ## What is actually better
 
 - Persistence. Goals survive the turn.
